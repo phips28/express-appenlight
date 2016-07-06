@@ -11,7 +11,7 @@ const request = require('request');
 const hostname = require('os').hostname();
 const CLS = require('continuation-local-storage');
 
-const NS = CLS.createNamespace('AppEnlight.express');
+const NS = CLS.createNamespace('AppEnlight');
 
 const METRICS_API_ENDPOINT = 'https://api.appenlight.com/api/request_stats?protocol_version=0.5';
 const REPORT_API_ENDPOINT = 'https://api.appenlight.com/api/reports?protocol_version=0.5';
@@ -21,7 +21,7 @@ const REPORT_API_ENDPOINT = 'https://api.appenlight.com/api/reports?protocol_ver
  * allows tracing individual function calls within an express.js app
  */
 function AppEnlightTracer(req, res, api_key, tags){
-	this.id = uuid.v4();
+	this.id = NS.get('request_id');
 	this.start_time = new Date();
 	this.req = req;
 	this.res = res;
@@ -132,6 +132,7 @@ function AppEnlight(api_key, tags){
 
 		NS.run(function(){
 			NS.set('tracer', req.ae_tracer);
+			NS.set('request_id', req.id || uuid.v4());
 
 			res.on('finish', function(){
 				req.ae_tracer.done();
