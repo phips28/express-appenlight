@@ -10,6 +10,7 @@ var uuid = require('uuid');
 var request = require('request');
 var hostname = require('os').hostname();
 var CLS = require('continuation-local-storage');
+var Batcher = require('batcher');
 
 var NS = CLS.createNamespace('AppEnlight');
 
@@ -23,12 +24,12 @@ var SLOW_THRESHOLD = 2;
  * AppEnlight Tracer, exposed as req.ae_tracer,
  * allows tracing individual function calls within an express.js app
  */
-function AppEnlightTracer(req, res, api_key, tags){
+function AppEnlightTracer(ae, req, res, tags){
 	this.id = req.id;
+	this.ae = ae;
 	this.start_time = new Date();
 	this.req = req;
 	this.res = res;
-	this.api_key = api_key;
 	this.slow_calls = [];
 	this.tags = tags;
 	this.stats = {
@@ -93,18 +94,8 @@ AppEnlightTracer.prototype.done = function ae_done(){
 		if(this.req.user){
 			data.username = this.req.user.username;
 		}
-		request({
-			method: 'POST',
-			uri: REPORT_API_ENDPOINT,
-			headers: {
-				'X-appenlight-api-key': this.api_key,
-			},
-			json: [data],
-		}, function(e,r,b){
-			if(!/^OK/.test(b)){
-				console.error('AppEnlight REQUEST FAILED', data.request_id, b);
-			}
-		});
+		// Queue up this report to send in a batch
+		this.ae.reportBatch.push(data);
 	}
 };
 
@@ -132,6 +123,27 @@ shimmer.wrap(http, 'request', function (original) {
 
 
 function AppEnlight(api_key, tags){
+	var self = this;
+	self.api_key = api_key;
+
+	// Batcher, allows us to queue up requests and only send them once every 30 seconds
+	self.reportBatch = new Batcher(30000);
+	self.reportBatch.on('ready', function submitValues(data){
+		request({
+			method: 'POST',
+			uri: REPORT_API_ENDPOINT,
+			headers: {
+				'X-appenlight-api-key': self.api_key,
+			},
+			json: data,
+		}, function(e,r,b){
+			if(!/^OK/.test(b)){
+				console.error('AppEnlight REQUEST FAILED', b, data);
+			}
+		});
+	});
+
+
 	/**
 	 * Router middleware for Express.js
 	 */
@@ -146,7 +158,7 @@ function AppEnlight(api_key, tags){
 			}
 			NS.set('request_id', req.id);
 
-			req.ae_tracer = new AppEnlightTracer(req, res, api_key, tags);
+			req.ae_tracer = new AppEnlightTracer(self, req, res, tags);
 			NS.set('tracer', req.ae_tracer);
 
 			res.on('finish', function(){
