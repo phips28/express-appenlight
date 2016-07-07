@@ -6,18 +6,18 @@
  * @Author: Chris Moyer <cmoyer@aci.info>
  */
 'use strict';
-const uuid = require('uuid');
-const request = require('request');
-const hostname = require('os').hostname();
-const CLS = require('continuation-local-storage');
+var uuid = require('uuid');
+var request = require('request');
+var hostname = require('os').hostname();
+var CLS = require('continuation-local-storage');
 
-const NS = CLS.createNamespace('AppEnlight');
+var NS = CLS.createNamespace('AppEnlight');
 
-const METRICS_API_ENDPOINT = 'https://api.appenlight.com/api/request_stats?protocol_version=0.5';
-const REPORT_API_ENDPOINT = 'https://api.appenlight.com/api/reports?protocol_version=0.5';
+var METRICS_API_ENDPOINT = 'https://api.appenlight.com/api/request_stats?protocol_version=0.5';
+var REPORT_API_ENDPOINT = 'https://api.appenlight.com/api/reports?protocol_version=0.5';
 
 // Threshold (in seconds) to report. Anything faster than this will not be reported to AppEnlight
-const SLOW_THRESHOLD = 2;
+var SLOW_THRESHOLD = 2;
 
 /**
  * AppEnlight Tracer, exposed as req.ae_tracer,
@@ -109,8 +109,8 @@ AppEnlightTracer.prototype.done = function ae_done(){
 };
 
 // Trace HTTP request
-const http = require('http');
-const shimmer = require('shimmer');
+var http = require('http');
+var shimmer = require('shimmer');
 
 shimmer.wrap(http, 'request', function (original) {
 	return function (options, callback) {
