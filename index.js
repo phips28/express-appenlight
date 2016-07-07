@@ -16,12 +16,15 @@ const NS = CLS.createNamespace('AppEnlight');
 const METRICS_API_ENDPOINT = 'https://api.appenlight.com/api/request_stats?protocol_version=0.5';
 const REPORT_API_ENDPOINT = 'https://api.appenlight.com/api/reports?protocol_version=0.5';
 
+// Threshold (in seconds) to report. Anything faster than this will not be reported to AppEnlight
+const SLOW_THRESHOLD = 2;
+
 /**
  * AppEnlight Tracer, exposed as req.ae_tracer,
  * allows tracing individual function calls within an express.js app
  */
 function AppEnlightTracer(req, res, api_key, tags){
-	this.id = NS.get('request_id');
+	this.id = req.id;
 	this.start_time = new Date();
 	this.req = req;
 	this.res = res;
@@ -65,36 +68,44 @@ AppEnlightTracer.prototype.trace = function ae_trace(type, name){
  */
 AppEnlightTracer.prototype.done = function ae_done(){
 	var now = new Date();
-	this.stats.main = (now - this.start_time)/100;
-	var data = {
-		client: 'express-appenlight',
-		language: 'node.js',
-		view_name: [this.req.method, this.req.path].join(':'),
-		server: hostname,
-		http_status: this.res.statusCode,
-		ip: this.req.ip,
-		start_time: this.start_time.toISOString(),
-		end_time: now.toISOString(),
-		user_agent: this.req.user_agent,
-		request_id: this.id,
-		request: {
-			REQUEST_METHOD: this.req.method,
-			PATH_INFO: this.req.path,
-		},
-		tags: this.tags,
-		request_stats: this.stats,
-	};
-	if(this.req.user){
-		data.username = this.req.user.username;
+	var completion_time = (now - this.start_time)/100;
+	// Only report requests slower than 2s
+	if(completion_time > SLOW_THRESHOLD){
+		this.stats.main = completion_time;
+		var data = {
+			client: 'express-appenlight',
+			language: 'node.js',
+			view_name: [this.req.method, this.req.path].join(':'),
+			server: hostname,
+			http_status: this.res.statusCode,
+			ip: this.req.ip,
+			start_time: this.start_time.toISOString(),
+			end_time: now.toISOString(),
+			user_agent: this.req.user_agent,
+			request_id: this.id || this.req.id,
+			request: {
+				REQUEST_METHOD: this.req.method,
+				PATH_INFO: this.req.path,
+			},
+			tags: this.tags,
+			request_stats: this.stats,
+		};
+		if(this.req.user){
+			data.username = this.req.user.username;
+		}
+		request({
+			method: 'POST',
+			uri: REPORT_API_ENDPOINT,
+			headers: {
+				'X-appenlight-api-key': this.api_key,
+			},
+			json: [data],
+		}, function(e,r,b){
+			if(!/^OK/.test(b)){
+				console.error('AppEnlight REQUEST FAILED', data.request_id, b);
+			}
+		});
 	}
-	request({
-		method: 'POST',
-		uri: REPORT_API_ENDPOINT,
-		headers: {
-			'X-appenlight-api-key': this.api_key,
-		},
-		json: [data],
-	});
 };
 
 // Trace HTTP request
@@ -125,14 +136,18 @@ function AppEnlight(api_key, tags){
 	 * Router middleware for Express.js
 	 */
 	return function router(req, res, next){
-		req.ae_tracer = new AppEnlightTracer(req, res, api_key, tags);
 
 		NS.bindEmitter(req);
 		NS.bindEmitter(res);
 
 		NS.run(function(){
+			if(req.id === undefined){
+				req.id = uuid.v4();
+			}
+			NS.set('request_id', req.id);
+
+			req.ae_tracer = new AppEnlightTracer(req, res, api_key, tags);
 			NS.set('tracer', req.ae_tracer);
-			NS.set('request_id', req.id || uuid.v4());
 
 			res.on('finish', function(){
 				req.ae_tracer.done();
