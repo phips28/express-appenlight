@@ -66,36 +66,47 @@ AppEnlightTracer.prototype.trace = function ae_trace(type, name){
 
 /**
  * Mark this request as completed and send metrics to AppEnlight
+ *
+ * @param err: An optional "Error" object that occurred during this execution
  */
-AppEnlightTracer.prototype.done = function ae_done(){
-	var now = new Date();
-	var completion_time = (now - this.start_time)/100;
-	// Only report requests slower than 2s
-	if(completion_time > SLOW_THRESHOLD){
-		this.stats.main = completion_time;
-		var data = {
-			client: 'express-appenlight',
-			language: 'node.js',
-			view_name: [this.req.method, this.req.path].join(':'),
-			server: hostname,
-			http_status: this.res.statusCode,
-			ip: this.req.ip,
-			start_time: this.start_time.toISOString(),
-			end_time: now.toISOString(),
-			user_agent: this.req.user_agent,
-			request_id: this.id || this.req.id,
-			request: {
-				REQUEST_METHOD: this.req.method,
-				PATH_INFO: this.req.path,
-			},
-			tags: this.tags,
-			request_stats: this.stats,
-		};
-		if(this.req.user){
-			data.username = this.req.user.username;
+AppEnlightTracer.prototype.done = function ae_done(err){
+	try{
+		var now = new Date();
+		var completion_time = (now - this.start_time)/100;
+		// Only report requests slower than 2s and errors
+		if(err || completion_time > SLOW_THRESHOLD || this.res.statusCode >= 400){
+			this.stats.main = completion_time;
+			var data = {
+				client: 'express-appenlight',
+				language: 'node.js',
+				view_name: [this.req.method, this.req.path].join(':'),
+				server: hostname,
+				http_status: this.res.statusCode,
+				ip: this.req.ip,
+				start_time: this.start_time.toISOString(),
+				end_time: now.toISOString(),
+				user_agent: this.req.user_agent,
+				request_id: this.id || this.req.id,
+				request: {
+					REQUEST_METHOD: this.req.method,
+					PATH_INFO: this.req.path,
+				},
+				tags: this.tags,
+				request_stats: this.stats,
+			};
+			if(this.req.user){
+				data.username = this.req.user.username;
+			}
+			if(err){
+				data.error = err.toString();
+			} else if(this.res.statusCode >= 400){
+				data.error = 'HTTP Error:' + this.res.statusCode;
+			}
+			// Queue up this report to send in a batch
+			this.ae.reportBatch.push(data);
 		}
-		// Queue up this report to send in a batch
-		this.ae.reportBatch.push(data);
+	} catch(e){
+		console.error('CRITICAL ERROR reporting to AppEnlight', e);
 	}
 };
 
@@ -121,13 +132,12 @@ shimmer.wrap(http, 'request', function (original) {
 	};
 });
 
-
 function AppEnlight(api_key, tags){
 	var self = this;
 	self.api_key = api_key;
 
-	// Batcher, allows us to queue up requests and only send them once every 30 seconds
-	self.reportBatch = new Batcher(30000);
+	// Batcher, allows us to queue up requests and only send them once every 5 seconds
+	self.reportBatch = new Batcher(5000);
 	self.reportBatch.on('ready', function submitValues(data){
 		request({
 			method: 'POST',
@@ -156,7 +166,10 @@ function AppEnlight(api_key, tags){
 			if(req.id === undefined){
 				req.id = uuid.v4();
 			}
+			req.cls_session = NS;
+
 			NS.set('request_id', req.id);
+			NS.set('api_key', self.api_key);
 
 			req.ae_tracer = new AppEnlightTracer(self, req, res, tags);
 			NS.set('tracer', req.ae_tracer);
@@ -165,7 +178,7 @@ function AppEnlight(api_key, tags){
 				req.ae_tracer.done();
 			});
 
-			next();
+			NS.bind(next)();
 		});
 	};
 }
