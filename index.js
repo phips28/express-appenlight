@@ -139,18 +139,22 @@ function AppEnlight(api_key, tags){
 	// Batcher, allows us to queue up requests and only send them once every 5 seconds
 	self.reportBatch = new Batcher(5000);
 	self.reportBatch.on('ready', function submitValues(data){
-		request({
-			method: 'POST',
-			uri: REPORT_API_ENDPOINT,
-			headers: {
-				'X-appenlight-api-key': self.api_key,
-			},
-			json: data,
-		}, function(e,r,b){
-			if(!/^OK/.test(b)){
-				console.error('AppEnlight REQUEST FAILED', b, data);
-			}
-		});
+		try{
+			request({
+				method: 'POST',
+				uri: REPORT_API_ENDPOINT,
+				headers: {
+					'X-appenlight-api-key': self.api_key,
+				},
+				json: data,
+			}, function(e,r,b){
+				if(!/^OK/.test(b)){
+					console.error('AppEnlight REQUEST FAILED', b, data);
+				}
+			});
+		} catch (e){
+			console.error('AppEnlight CRITICAL REQUEST FAILURE', e);
+		}
 	});
 
 
