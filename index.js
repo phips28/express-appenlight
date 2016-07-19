@@ -105,6 +105,12 @@ AppEnlightTracer.prototype.done = function ae_done(err){
 			}
 			// Queue up this report to send in a batch
 			this.ae.reportBatch.push(data);
+
+			// Also send Metrics
+			this.ae.metricsBatch.push([
+				this.name,
+				this.stats,
+			]);
 		}
 	} catch(e){
 		console.error('CRITICAL ERROR reporting to AppEnlight', e);
@@ -154,6 +160,27 @@ function AppEnlight(api_key, tags){
 				}
 			});
 		} catch (e){
+			console.error('AppEnlight CRITICAL REQUEST FAILURE', e);
+		}
+	});
+	
+	// Also create a batcher for "Metrics"
+	self.metricsBatch = new Batcher(5000);
+	self.metricsBatch.on('ready', function submitMetrics(data){
+		try{
+			request({
+				method: 'POST',
+				uri: METRICS_API_ENDPOINT,
+				headers: {
+					'X-appenlight-api-key': self.api_key,
+				},
+				json: data,
+			}, function(e,r,b){
+				if(!/^OK/.test(b)){
+					console.error('AppEnlight REQUEST FAILED', b, data);
+				}
+			});
+		} catch(e){
 			console.error('AppEnlight CRITICAL REQUEST FAILURE', e);
 		}
 	});
