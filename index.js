@@ -58,7 +58,7 @@ AppEnlightTracer.prototype.trace = function ae_trace(type, name){
 	var trace_start = new Date();
 	return function trace_done(){
 		try{
-			var completion_time = (new Date() - trace_start)/100;
+			var completion_time = (new Date() - trace_start)/1000;
 			self.stats[type] += completion_time;
 			self.stats[type + '_calls']++;
 			var metricStats = {};
@@ -85,7 +85,7 @@ AppEnlightTracer.prototype.done = function ae_done(err){
 			this.renderWrapperTracer();
 		}
 		var now = new Date();
-		var completion_time = (now - this.start_time)/100;
+		var completion_time = (now - this.start_time)/1000;
 		// Only report requests slower than 2s and errors
 		if(err || completion_time > SLOW_THRESHOLD || this.res.statusCode >= 400){
 			this.stats.main = completion_time;
@@ -108,7 +108,7 @@ AppEnlightTracer.prototype.done = function ae_done(err){
 				request_stats: this.stats,
 			};
 			if(this.req.user){
-				data.username = this.req.user.username;
+				data.username = this.req.user.displayName || this.req.user.$id;
 			}
 			if(err){
 				data.error = err.toString();
