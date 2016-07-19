@@ -45,6 +45,7 @@ function AppEnlightTracer(ae, req, res, tags){
 		custom: 0,
 		custom_calls: 0,
 	};
+	this.name = [this.req.method, this.req.path].join(':');
 }
 
 /**
@@ -79,7 +80,7 @@ AppEnlightTracer.prototype.done = function ae_done(err){
 			var data = {
 				client: 'express-appenlight',
 				language: 'node.js',
-				view_name: [this.req.method, this.req.path].join(':'),
+				view_name: this.name,
 				server: hostname,
 				http_status: this.res.statusCode,
 				ip: this.req.ip,
