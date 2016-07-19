@@ -9,10 +9,7 @@
 var uuid = require('uuid');
 var request = require('request');
 var hostname = require('os').hostname();
-var CLS = require('continuation-local-storage');
 var Batcher = require('batcher');
-
-var NS = CLS.createNamespace('AppEnlight');
 
 var METRICS_API_ENDPOINT = 'https://api.appenlight.com/api/request_stats?protocol_version=0.5';
 var REPORT_API_ENDPOINT = 'https://api.appenlight.com/api/reports?protocol_version=0.5';
@@ -84,6 +81,9 @@ AppEnlightTracer.prototype.trace = function ae_trace(type, name){
  */
 AppEnlightTracer.prototype.done = function ae_done(err){
 	try{
+		if(this.renderWrapperTracer){
+			this.renderWrapperTracer();
+		}
 		var now = new Date();
 		var completion_time = (now - this.start_time)/100;
 		// Only report requests slower than 2s and errors
@@ -117,44 +117,24 @@ AppEnlightTracer.prototype.done = function ae_done(err){
 			}
 			// Queue up this report to send in a batch
 			this.ae.reportBatch.push(data);
-
-			// Also send Metrics
-			this.metrics.unshift([
-				this.name,
-				this.stats,
-			]);
-			this.ae.metricsBatch.push({
-				server: hostname,
-				timestamp: now.toISOString(),
-				metrics: this.metrics,
-			});
 		}
+
+		// Always send Metrics
+		this.metrics.unshift([
+			this.name,
+			this.stats,
+		]);
+		this.ae.metricsBatch.push({
+			server: hostname,
+			timestamp: now.toISOString(),
+			metrics: this.metrics,
+		});
 	} catch(e){
 		console.error('CRITICAL ERROR reporting to AppEnlight', e);
 	}
 };
 
-// Trace HTTP request
-var http = require('http');
 var shimmer = require('shimmer');
-
-shimmer.wrap(http, 'request', function (original) {
-	return function (options, callback) {
-		var tracer = NS.get('tracer');
-		if(tracer){
-			var trace_completed = NS.get('tracer').trace('remote', ['http', options.method, options.hostname || options.host].join(':'));
-			var returned = original.call(this, options, function(){
-				trace_completed();
-				if(callback){
-					callback.apply(this, arguments);
-				}
-			});
-			return returned;
-		} else {
-			return original.apply(this, arguments);
-		}
-	};
-});
 
 function AppEnlight(api_key, tags){
 	var self = this;
@@ -207,28 +187,21 @@ function AppEnlight(api_key, tags){
 	 * Router middleware for Express.js
 	 */
 	return function router(req, res, next){
+		if(req.id === undefined){
+			req.id = uuid.v4();
+		}
+		req.ae_tracer = new AppEnlightTracer(self, req, res, tags);
 
-		NS.bindEmitter(req);
-		NS.bindEmitter(res);
-
-		NS.run(function(){
-			if(req.id === undefined){
-				req.id = uuid.v4();
-			}
-			req.cls_session = NS;
-
-			NS.set('request_id', req.id);
-			NS.set('api_key', self.api_key);
-
-			req.ae_tracer = new AppEnlightTracer(self, req, res, tags);
-			NS.set('tracer', req.ae_tracer);
-
-			res.on('finish', function(){
-				req.ae_tracer.done();
-			});
-
-			NS.bind(next)();
+		res.on('finish', function(){
+			req.ae_tracer.done();
 		});
+		shimmer.wrap(res, 'render', function (original) {
+			return function renderWrapper(name){
+				req.ae_tracer.renderWrapperTracer = req.ae_tracer.trace('tmpl', 'Render:' + name);
+				return original.apply(this, arguments);
+			};
+		});
+		next();
 	};
 }
 
