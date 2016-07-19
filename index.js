@@ -32,6 +32,7 @@ function AppEnlightTracer(ae, req, res, tags){
 	this.res = res;
 	this.slow_calls = [];
 	this.tags = tags;
+	this.metrics = [];
 	this.stats = {
 		main: 0,
 		nosql: 0,
@@ -59,9 +60,20 @@ AppEnlightTracer.prototype.trace = function ae_trace(type, name){
 	var self = this;
 	var trace_start = new Date();
 	return function trace_done(){
-		var completion_time = (new Date() - trace_start)/100;
-		self.stats[type] += completion_time;
-		self.stats[type + '_calls']++;
+		try{
+			var completion_time = (new Date() - trace_start)/100;
+			self.stats[type] += completion_time;
+			self.stats[type + '_calls']++;
+			var metricStats = {};
+			metricStats[type] = completion_time;
+			metricStats[type + '_calls'] = 1;
+			self.metrics.push([
+				name,
+				metricStats
+			]);
+		} catch(e){
+			console.error('AppEnlight Critical Error completing trace', e);
+		}
 	};
 };
 
@@ -107,10 +119,15 @@ AppEnlightTracer.prototype.done = function ae_done(err){
 			this.ae.reportBatch.push(data);
 
 			// Also send Metrics
-			this.ae.metricsBatch.push([
+			this.metrics.unshift([
 				this.name,
 				this.stats,
 			]);
+			this.ae.metricsBatch.push({
+				server: hostname,
+				timestamp: now.toISOString(),
+				metrics: this.metrics,
+			});
 		}
 	} catch(e){
 		console.error('CRITICAL ERROR reporting to AppEnlight', e);
