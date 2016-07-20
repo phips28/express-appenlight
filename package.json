@@ -23,6 +23,7 @@
   "homepage": "https://github.com/Newstex/express-appenlight#readme",
   "dependencies": {
     "batcher": "git+https://github.com/Newstex/batcher.git",
+    "lodash": "^4.13.1",
     "request": "^2.72.0",
     "shimmer": "^1.1.0",
     "uuid": "^2.0.2"

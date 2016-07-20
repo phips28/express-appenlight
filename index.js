@@ -6,6 +6,7 @@
  * @Author: Chris Moyer <cmoyer@aci.info>
  */
 'use strict';
+var _ = require('lodash');
 var uuid = require('uuid');
 var request = require('request');
 var hostname = require('os').hostname();
@@ -76,7 +77,8 @@ AppEnlightTracer.prototype.trace = function ae_trace(type, name, params){
 	}
 	return function trace_done(){
 		try{
-			var completion_time = (new Date() - trace_start)/1000;
+			var now = new Date();
+			var completion_time = (now - trace_start)/1000;
 			self.stats[type] += completion_time;
 			self.stats[type + '_calls']++;
 			var metricStats = {};
@@ -86,8 +88,11 @@ AppEnlightTracer.prototype.trace = function ae_trace(type, name, params){
 				name,
 				metricStats
 			]);
-			call_stats.end = (new Date()).toISOString();
-			self.slow_calls.push(call_stats);
+			// Only track slow calls, over 50ms
+			if(completion_time > 0.05){
+				call_stats.end = now.toISOString();
+				self.slow_calls.push(call_stats);
+			}
 		} catch(e){
 			console.error('AppEnlight Critical Error completing trace', e);
 		}
@@ -160,7 +165,7 @@ AppEnlightTracer.prototype.done = function ae_done(err){
 
 var shimmer = require('shimmer');
 
-function AppEnlight(api_key, tags){
+function AppEnlight(api_key, tags, app){
 	var self = this;
 	self.api_key = api_key;
 
@@ -206,6 +211,42 @@ function AppEnlight(api_key, tags){
 		}
 	});
 
+	// Wrap the "use" function
+	if(app){
+		shimmer.wrap(app, 'use', function(originalUseFnc){
+			return function appEnlightWrapper(originalFnc){
+				var fns = arguments;
+				_.forEach(fns, function(fn, index){
+					if(typeof fn === 'function'){
+						//
+						// The function signature can effect what arguments are used to call the middleware,
+						// if there are 4 arguments the first one is an "err" object, but if there are only 3
+						// objects the "err" object is completely ignored. This is an oddity of Express that must
+						// be properly handled in this wrapper or we completely break middleware such as "express-winston"
+						//
+						var args = fn.toString().match(/^[\s\(]*function[^(]*\(([^)]*)\)/)[1].replace(/\/\/.*?[\r\n]|\/\*(?:.|[\r\n])*?\*\//g, '').replace(/\s+/g, '').split(',');
+						var fnName = fn.name || '(anonymous)';
+						if(args && args.length === 4){
+							fns[index] = function aeMiddlewareWrapper(err, req, res, next){
+								return fn.apply(this, arguments);
+							};
+						} else {
+							fns[index] = function aeMiddlewareWrapper(req, res, next){
+								var tracerCallback = req.ae_tracer.trace('custom', 'express:' + fnName);
+								var originalNext = next;
+								next = function(){
+									tracerCallback();
+									originalNext.apply(this, arguments);
+								};
+								return fn.call(this, req, res, next);
+							};
+						}
+					}
+				});
+				return originalUseFnc.apply(this, fns);
+			};
+		});
+	}
 
 	/**
 	 * Router middleware for Express.js
@@ -228,5 +269,6 @@ function AppEnlight(api_key, tags){
 		next();
 	};
 }
+
 
 module.exports = AppEnlight;
