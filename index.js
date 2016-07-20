@@ -51,15 +51,19 @@ function AppEnlightTracer(ae, req, res, tags){
  *
  * @param type: Type of stat, either "custom", "nosql", "sql", "remote", or "tmpl"
  * @param name: Name of the function to trace
+ * @param params: (Optional) Parameters, for tracking purposes
  * @return: Callback function to execute on completion of function
  */
-AppEnlightTracer.prototype.trace = function ae_trace(type, name){
+AppEnlightTracer.prototype.trace = function ae_trace(type, name, params){
 	var self = this;
 	var trace_start = new Date();
 	var call_stats = {
 		start: (new Date()).toISOString(),
 		type: type,
 	};
+	if(params){
+		call_stats.parameters = params;
+	}
 	if(name){
 		try{
 			call_stats.subtype = name.split(':')[0].substring(0,14);
