@@ -16,7 +16,7 @@ var METRICS_API_ENDPOINT = 'https://api.appenlight.com/api/request_stats?protoco
 var REPORT_API_ENDPOINT = 'https://api.appenlight.com/api/reports?protocol_version=0.5';
 
 // Threshold (in seconds) to report. Anything faster than this will not be reported to AppEnlight
-var SLOW_THRESHOLD = 2;
+var SLOW_THRESHOLD = 1;
 
 /**
  * AppEnlight Tracer, exposed as req.ae_tracer,
