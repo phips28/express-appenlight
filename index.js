@@ -107,6 +107,9 @@ AppEnlightTracer.prototype.done = function ae_done(err){
 				tags: this.tags,
 				request_stats: this.stats,
 			};
+			if(this.req.query){
+				data.request.QUERY = this.req.query;
+			}
 			if(this.req.user){
 				data.username = this.req.user.displayName || this.req.user.$id;
 			}
