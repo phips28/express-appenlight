@@ -56,6 +56,20 @@ function AppEnlightTracer(ae, req, res, tags){
 AppEnlightTracer.prototype.trace = function ae_trace(type, name){
 	var self = this;
 	var trace_start = new Date();
+	var call_stats = {
+		start: (new Date()).toISOString(),
+		type: type,
+	};
+	if(name){
+		try{
+			call_stats.subtype = name.split(':')[0].substring(0,14);
+			if(name.split(':').length > 1){
+				call_stats.statement = name;
+			}
+		} catch (e){
+			console.log('AppEnlight: Invalid Trace Name', name, e);
+		}
+	}
 	return function trace_done(){
 		try{
 			var completion_time = (new Date() - trace_start)/1000;
@@ -68,6 +82,8 @@ AppEnlightTracer.prototype.trace = function ae_trace(type, name){
 				name,
 				metricStats
 			]);
+			call_stats.end = (new Date()).toISOString();
+			self.slow_calls.push(call_stats);
 		} catch(e){
 			console.error('AppEnlight Critical Error completing trace', e);
 		}
@@ -106,6 +122,7 @@ AppEnlightTracer.prototype.done = function ae_done(err){
 				},
 				tags: this.tags,
 				request_stats: this.stats,
+				slow_calls: this.slow_calls,
 			};
 			if(this.req.query){
 				data.request.QUERY = this.req.query;
