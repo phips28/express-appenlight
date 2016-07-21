@@ -72,7 +72,7 @@ AppEnlightTracer.prototype.trace = function ae_trace(type, name, params){
 				call_stats.statement = name;
 			}
 		} catch (e){
-			console.log('AppEnlight: Invalid Trace Name', name, e);
+			console.error('AppEnlight: Invalid Trace Name', name, e);
 		}
 	}
 	return function trace_done(){
@@ -81,13 +81,6 @@ AppEnlightTracer.prototype.trace = function ae_trace(type, name, params){
 			var completion_time = (now - trace_start)/1000;
 			self.stats[type] += completion_time;
 			self.stats[type + '_calls']++;
-			var metricStats = {};
-			metricStats[type] = completion_time;
-			metricStats[type + '_calls'] = 1;
-			self.metrics.push([
-				name,
-				metricStats
-			]);
 			// Only track slow calls, over 50ms
 			if(completion_time > 0.05){
 				call_stats.end = now.toISOString();
