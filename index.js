@@ -30,7 +30,6 @@ function AppEnlightTracer(ae, req, res, tags){
 	this.res = res;
 	this.slow_calls = [];
 	this.tags = tags;
-	this.metrics = [];
 	this.stats = {
 		main: 0,
 		nosql: 0,
@@ -141,16 +140,13 @@ AppEnlightTracer.prototype.done = function ae_done(err){
 			this.ae.reportBatch.push(data);
 		}
 
-		// Always send Metrics
-		this.metrics.unshift([
-			this.name,
-			this.stats,
-		]);
-		this.ae.metricsBatch.push({
-			server: hostname,
-			timestamp: now.toISOString(),
-			metrics: this.metrics,
-		});
+		// Always send Metrics if it took more than 0 time
+		if(this.stats.main > 0){
+			this.ae.metricsBatch.push([
+				this.name,
+				this.stats,
+			]);
+		}
 	} catch(e){
 		console.error('CRITICAL ERROR reporting to AppEnlight', e);
 	}
@@ -184,7 +180,7 @@ function AppEnlight(api_key, tags, app){
 	});
 	
 	// Also create a batcher for "Metrics"
-	self.metricsBatch = new Batcher(5000);
+	self.metricsBatch = new Batcher(60000);
 	self.metricsBatch.on('ready', function submitMetrics(data){
 		try{
 			request({
@@ -193,7 +189,11 @@ function AppEnlight(api_key, tags, app){
 				headers: {
 					'X-appenlight-api-key': self.api_key,
 				},
-				json: data,
+				json: [{
+					server: hostname,
+					timestamp: (new Date()).toISOString(),
+					metrics: data,
+				}],
 			}, function(e,r,b){
 				if(!/^OK/.test(b)){
 					console.error('AppEnlight REQUEST FAILED', b, data);
