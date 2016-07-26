@@ -6,6 +6,7 @@
 'use strict'
 
 var util = require('util');
+var uuid = require('uuid');
 var Trace = require('./trace');
 
 // Threshold (in ms) to report.
@@ -18,7 +19,6 @@ function Transaction(ae, req, res, tags) {
 	this.traces = [];
 	this.status = 200;
 	this.ended = false;
-	this.rootTrace = this.newTrace('main');
 
 	this.id = req.id;
 	this.ae = ae;
@@ -41,6 +41,11 @@ function Transaction(ae, req, res, tags) {
 	};
 	this.name = [this.req.method, this.req.path].join(':');
 
+	// Handle overlapping traces
+	this.traceQueue = [];
+	this.traceCursor = null;
+
+	this.rootTrace = this.newTrace('main');
 }
 
 /**
@@ -52,28 +57,62 @@ function Transaction(ae, req, res, tags) {
  * @return: Callback function to execute on completion of function
  */
 Transaction.prototype.newTrace = function newTrace(type, name, params) {
-	var trans = this;
-	return new Trace(type, name, params, function traceCallback(trace) {
-		if (trans.ended) return;
+	var self = this;
+	var traceID = [type, uuid.v4()].join(':');
+	if(type !== 'main'){
+		self.traceQueue.push(traceID);
+	}
+
+	var traceObj = new Trace(type, name, params, function traceCallback(trace) {
+		if (self.ended) return;
 
 		// Update our stats
 		try{
-			//trans.stats[type] += completion_time;
-			trans.stats[type] = trace.duration/1000;
-			if(type !== 'main'){
-				trans.stats[type + '_calls']++;
+			if(type === 'main'){
+				self.stats[type] = trace.duration/1000;
+			} else {
+				self.stats[type + '_calls']++;
+				var traceIndex = self.traceQueue.indexOf(traceID);
+				if(traceIndex >= 0){
+					// Remove this trace from the queue
+					self.traceQueue.splice(traceIndex, 1);
 
-				// Only track slow traces
-				if(trace.duration > 50 ){
-					console.log('Slow Call', trace.type, trace.name, trace.duration);
-					trans.traces.push(trace);
+					var duration = trace.duration/1000;
+					if(self.traceCursor){
+						var diff = process.hrtime(self.traceCursor);
+						var ns = diff[0] * 1e9 + diff[1];
+						duration = ns / 1e9;
+					}
+
+					if(self.traceQueue.length === 0){
+						self.traceCursor = null;
+						self.stats[type] += duration;
+					} else {
+						var lastTrace = self.traceQueue[self.traceQueue.length-1].split(':');
+						if(lastTrace[0] !== type){
+							self.traceCursor = process.hrtime();
+							self.stats[type] += duration;
+						}
+					}
+
+					// Only track slow traces
+					if(trace.duration > 50 ){
+						self.traces.push(trace);
+					}
 				}
 			}
 		} catch(e){
 			console.error('AppEnlight Critical Error completing trace', e);
 		}
 
-	})
+	});
+
+	traceObj.id = traceID;
+	if(self.traceCursor === null){
+		self.traceCursor = traceObj._start;
+	}
+
+	return traceObj;
 }
 
 /**
@@ -126,19 +165,18 @@ Transaction.prototype.end = function endTransaction(err) {
 			} else if(self.res.statusCode >= 400){
 				data.error = 'HTTP Error:' + self.res.statusCode;
 			}
-			console.log('REPORT', data);
 			// Queue up this report to send in a batch
-			self.ae.reportBatch.push(data);
+			if(self.ae){
+				self.ae.reportBatch.push(data);
+			}
 		}
 
 		// Always send Metrics if it took more than 0 time
-		if(self.stats.main > 0){
-			/*
+		if(self.stats.main > 0 && self.ae){
 			self.ae.metricsBatch.push([
 				self.name,
 				self.stats,
 			]);
-			*/
 		}
 	}
 }
