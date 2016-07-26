@@ -1,0 +1,33 @@
+{
+  "name": "express-appenlight",
+  "version": "0.1.0",
+  "description": "Support for the AppEnlight Metrics API for Express applications",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Newstex/express-appenlight.git"
+  },
+  "keywords": [
+    "APM",
+    "Express",
+    "AppEnlight"
+  ],
+  "author": "Chris Moyer <cmoyer@aci.info>",
+  "license": "SEE LICENSE IN LICENSE",
+  "bugs": {
+    "url": "https://github.com/Newstex/express-appenlight/issues"
+  },
+  "homepage": "https://github.com/Newstex/express-appenlight#readme",
+  "dependencies": {
+    "batcher": "git+https://github.com/Newstex/batcher.git",
+    "is-native": "^1.0.1",
+    "lodash": "^4.13.1",
+    "request": "^2.72.0",
+    "require-in-the-middle": "^2.1.2",
+    "shimmer": "^1.1.0",
+    "uuid": "^2.0.2"
+  }
+}
