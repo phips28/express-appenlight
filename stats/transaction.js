@@ -153,6 +153,7 @@ Transaction.prototype.end = function endTransaction(err) {
 				tags: self.tags,
 				request_stats: self.stats,
 				slow_calls: slow_calls,
+				priority: 1,
 			};
 			if(self.req.query){
 				data.request.QUERY = self.req.query;
@@ -162,8 +163,10 @@ Transaction.prototype.end = function endTransaction(err) {
 			}
 			if(err){
 				data.error = err.toString();
+				data.priority = 10;
 			} else if(self.res.statusCode >= 400){
 				data.error = 'HTTP Error:' + self.res.statusCode;
+				data.priority = 5;
 			}
 			// Queue up this report to send in a batch
 			if(self.ae){

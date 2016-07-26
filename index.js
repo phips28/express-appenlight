@@ -142,5 +142,6 @@ function AppEnlight(api_key, tags, app){
 	};
 }
 
+AppEnlight.agent = stats;
 
 module.exports = AppEnlight;
