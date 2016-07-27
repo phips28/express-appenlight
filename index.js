@@ -13,6 +13,7 @@ var hostname = require('os').hostname();
 var Batcher = require('batcher');
 var stats = require('./stats');
 
+var CUSTOM_METRICS_API_ENDPOINT = 'https://api.appenlight.com/api/general_metrics?protocol_version=0.5';
 var METRICS_API_ENDPOINT = 'https://api.appenlight.com/api/request_stats?protocol_version=0.5';
 var REPORT_API_ENDPOINT = 'https://api.appenlight.com/api/reports?protocol_version=0.5';
 
@@ -67,6 +68,29 @@ function AppEnlight(api_key, tags, app){
 			console.error('AppEnlight CRITICAL REQUEST FAILURE', e);
 		}
 	});
+
+	// And one for "Custom Metrics" which is for detailed
+	// statistics on HTTP requests
+	self.customMetricsBatch = new Batcher(10000);
+	self.customMetricsBatch.on('ready', function submitMetrics(data){
+		try{
+			request({
+				method: 'POST',
+				uri: CUSTOM_METRICS_API_ENDPOINT,
+				headers: {
+					'X-appenlight-api-key': self.api_key,
+				},
+				json: data,
+			}, function(e,r,b){
+				if(!/^OK/.test(b)){
+					console.error('AppEnlight REQUEST FAILED', b, data);
+				}
+			});
+		} catch(e){
+			console.error('AppEnlight CRITICAL REQUEST FAILURE', e);
+		}
+	});
+
 
 	// Wrap the "use" function
 	if(app){

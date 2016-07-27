@@ -11,6 +11,7 @@ var OPTIONS_COPY_PROPS = [
 	'host',
 	'hostname',
 	'port',
+	'method',
 ];
 
 module.exports = function patchHTTP(agent){
@@ -21,6 +22,8 @@ module.exports = function patchHTTP(agent){
 				if(options.uri){
 					params.query = options.uri.query;
 					params.search = options.uri.search;
+					params.path = options.uri.path;
+					params.pathname = options.uri.pathname;
 				}
 				var trace = agent.currentTransaction.newTrace('remote',
 					['http', options.method, options.hostname || options.host].join(':'),
