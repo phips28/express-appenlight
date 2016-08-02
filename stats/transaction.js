@@ -180,6 +180,29 @@ Transaction.prototype.end = function endTransaction(err) {
 				self.name,
 				self.stats,
 			]);
+
+			// Custom metrics for remote calls
+			// These stats are collected in the regular "metrics" API so
+			// you can generate graphs for how long is spent on each remote request
+			self.traces.filter(function (trace){
+				// Only track remote requests with subtype http that contain a host or hostname
+				return trace.type === 'remote' && trace.subtype === 'http' && (trace.params && (trace.params.host || trace.params.hostname));
+			}).forEach(function(trace){
+				self.ae.customMetricsBatch.push({
+					timestamp: trace.stats.start,
+					namespace: 'remote.http',
+					server_name: hostname,
+					tags: [
+						['type', 'remote'],
+						['subtype', 'http'],
+						['method', trace.params.method || 'GET'],
+						['hostname', trace.params.host || trace.params.hostname],
+						['path', trace.params.path || ''],
+						['pathname', trace.params.pathname || ''],
+						['value', trace.duration/1000],
+					],
+				});
+			});
 		}
 	}
 }

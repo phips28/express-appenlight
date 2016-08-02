@@ -7,9 +7,10 @@
 
 var agent = module.exports = {};
 
-require('./modules')(agent); // Hook into Module._load
 require('./async-hook')(agent); // Hook into nextTick, timers and Promise in Node core
 require('./async-wrap')(agent); // Use AsyncWrap
+
+require('./tracers')(agent); // Custom traces
 
 var util = require('util');
 var Transaction = require('./transaction');

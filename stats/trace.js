@@ -23,7 +23,8 @@ function Trace(type, name, params, onEnd){
 	}
 	if(name){
 		try{
-			this.stats.subtype = name.split(':')[0].substring(0,14);
+			this.subtype = name.split(':')[0].substring(0,14);
+			this.stats.subtype = this.subtype;
 			if(name.split(':').length > 1){
 				this.stats.statement = name;
 			}
