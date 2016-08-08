@@ -9,7 +9,13 @@ All that's needed to enable the tracer is to initialize it and set it up as midd
 
 ```
 var AppEnlight = require('express-appenlight');
-app.use(new AppEnlight(conf.APPENLIGHT_KEY));
+app.use(new AppEnlight({
+	key: 'MY_APPENLIGHT_KEY',
+	tags: {
+		optional: 'TAGS',
+	},
+	base_url: 'http://custom-appenlight-url/api',
+}, app));
 ```
 
 Once that's set up, every request will have an *ae_transaction* option.

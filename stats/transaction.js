@@ -5,6 +5,7 @@
  */
 'use strict'
 
+var _ = require('lodash');
 var util = require('util');
 var uuid = require('uuid');
 var Trace = require('./trace');
@@ -14,6 +15,23 @@ var Trace = require('./trace');
 var SLOW_THRESHOLD = 1000;
 
 var hostname = require('os').hostname();
+
+/**
+ * Takes a meta object and "flattens" it into dot-separated tags
+ */
+function flattenObject(meta, tags, prefix){
+	_.forEach(meta, function(val, key){
+		if(prefix){
+			key = [prefix, key].join('.');
+		}
+		if(_.isObject(val)){
+			flattenObject(val, tags, key);
+		} else {
+			tags.push([key, util.format(val)]);
+		}
+	});
+	return tags;
+}
 
 function Transaction(ae, req, res, tags) {
 	this.traces = [];
@@ -25,7 +43,7 @@ function Transaction(ae, req, res, tags) {
 	this.start_time = new Date();
 	this.req = req;
 	this.res = res;
-	this.tags = tags;
+	this.tags = flattenObject(tags, []);
 	this.stats = {
 		main: 0,
 		nosql: 0,

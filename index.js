@@ -13,15 +13,26 @@ var hostname = require('os').hostname();
 var Batcher = require('batcher');
 var stats = require('./stats');
 
-var CUSTOM_METRICS_API_ENDPOINT = 'https://api.appenlight.com/api/general_metrics?protocol_version=0.5';
-var METRICS_API_ENDPOINT = 'https://api.appenlight.com/api/request_stats?protocol_version=0.5';
-var REPORT_API_ENDPOINT = 'https://api.appenlight.com/api/reports?protocol_version=0.5';
+var DEFAULT_BASE_URL = 'https://api.appenlight.com/api';
+var CUSTOM_METRICS_PATH = '/general_metrics?protocol_version=0.5';
+var METRICS_PATH = '/request_stats?protocol_version=0.5';
+var REPORT_PATH = '/reports?protocol_version=0.5';
 
 var shimmer = require('shimmer');
 
-function AppEnlight(api_key, tags, app){
+function AppEnlight(conf, app){
 	var self = this;
-	self.api_key = api_key;
+	self.conf = conf;
+	self.api_key = conf.key || conf.api_key;
+
+	if(!conf.base_url){
+		conf.base_url = DEFAULT_BASE_URL;
+	}
+
+	// Build each endpoint URL
+	self.conf.report_endpoint = conf.base_url + REPORT_PATH;
+	self.conf.metrics_endpoint = conf.base_url + METRICS_PATH;
+	self.conf.custom_metrics_endpoint = conf.base_url + CUSTOM_METRICS_PATH;
 
 	// Batcher, allows us to queue up requests and only send them once every 5 seconds
 	self.reportBatch = new Batcher(5000);
@@ -29,7 +40,7 @@ function AppEnlight(api_key, tags, app){
 		try{
 			request({
 				method: 'POST',
-				uri: REPORT_API_ENDPOINT,
+				uri: self.conf.report_endpoint,
 				headers: {
 					'X-appenlight-api-key': self.api_key,
 				},
@@ -50,7 +61,7 @@ function AppEnlight(api_key, tags, app){
 		try{
 			request({
 				method: 'POST',
-				uri: METRICS_API_ENDPOINT,
+				uri: self.conf.custom_metrics_endpoint,
 				headers: {
 					'X-appenlight-api-key': self.api_key,
 				},
@@ -76,7 +87,7 @@ function AppEnlight(api_key, tags, app){
 		try{
 			request({
 				method: 'POST',
-				uri: CUSTOM_METRICS_API_ENDPOINT,
+				uri: self.conf.custom_metrics_endpoint,
 				headers: {
 					'X-appenlight-api-key': self.api_key,
 				},
@@ -136,7 +147,7 @@ function AppEnlight(api_key, tags, app){
 		if(req.id === undefined){
 			req.id = uuid.v4();
 		}
-		req.ae_transaction = stats.newTransaction(self, req, res, tags);
+		req.ae_transaction = stats.newTransaction(self, req, res, self.conf.tags);
 
 		res.on('finish', function(){
 			if(req.ae_transaction.renderWrapperTracer){
