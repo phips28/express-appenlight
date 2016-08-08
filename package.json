@@ -1,6 +1,6 @@
 {
   "name": "express-appenlight",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Support for the AppEnlight Metrics API for Express applications",
   "main": "index.js",
   "scripts": {
