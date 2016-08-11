@@ -47,7 +47,7 @@ function AppEnlight(conf, app){
 				json: data,
 			}, function(e,r,b){
 				if(!/^OK/.test(b)){
-					console.error('AppEnlight REQUEST FAILED', b, data);
+					console.error('AppEnlight report REQUEST FAILED', b, data);
 				}
 			});
 		} catch (e){
@@ -61,7 +61,7 @@ function AppEnlight(conf, app){
 		try{
 			request({
 				method: 'POST',
-				uri: self.conf.custom_metrics_endpoint,
+				uri: self.conf.metrics_endpoint,
 				headers: {
 					'X-appenlight-api-key': self.api_key,
 				},
@@ -72,7 +72,7 @@ function AppEnlight(conf, app){
 				}],
 			}, function(e,r,b){
 				if(!/^OK/.test(b)){
-					console.error('AppEnlight REQUEST FAILED', b, data);
+					console.error('AppEnlight request metrics REQUEST FAILED', b, data);
 				}
 			});
 		} catch(e){
@@ -94,7 +94,7 @@ function AppEnlight(conf, app){
 				json: data,
 			}, function(e,r,b){
 				if(!/^OK/.test(b)){
-					console.error('AppEnlight REQUEST FAILED', b, data);
+					console.error('AppEnlight custom metrics REQUEST FAILED', b, data);
 				}
 			});
 		} catch(e){
