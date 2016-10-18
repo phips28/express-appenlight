@@ -29,5 +29,9 @@
     "require-in-the-middle": "^2.1.2",
     "shimmer": "^1.1.0",
     "uuid": "^2.0.2"
-  }
+  },
+  "engines": {
+    "node": ">=4.4.0 <5.0.0"
+  },
+  "engine-strict": true
 }
