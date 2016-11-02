@@ -8,6 +8,7 @@
 
 const asyncWrap = process.binding('async_wrap');
 const TIMER = asyncWrap.Providers.TIMERWRAP;
+const node_major_version = parseInt(process.versions.node.split('.')[0]);
 
 module.exports = function asyncWrapper(agent) {
 
@@ -36,6 +37,10 @@ module.exports = function asyncWrapper(agent) {
 		prevState.delete(uid);
 	}
 
-	asyncWrap.setupHooks(init, pre, post, destroy);
+	if(node_major_version >= 6){
+		asyncWrap.setupHooks({init, pre, post, destroy});
+	} else {
+		asyncWrap.setupHooks(init, pre, post, destroy);
+	}
 	asyncWrap.enable();
 };
