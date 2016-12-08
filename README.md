@@ -29,7 +29,7 @@ Usage:
 ```
 function (req, res, next){
 	// Add a new trace
-	var trace = req.ae_transaction.newTracer('custom', 'functionName', req.query);
+	var trace = req.ae_transaction.newTrace('custom', 'functionName', req.query);
 
 	// Do your application logic
 	... do stuff...
