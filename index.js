@@ -117,10 +117,10 @@ function AppEnlight(conf, app){
 						// be properly handled in this wrapper or we completely break middleware such as "express-winston"
 						//
 						// support "function (a,b,c)"
-                                                var matchNormalFunction = fn.toString().match(/^[\s\(]*function[^(]*\(([^)]*)\)/);
-                                                // support "(a,b,c) =>", "(a,b,c)=>"
-                                                var matchShortHandFunction = fn.toString().match(/^\(([^)]*)\).?=>/);
-                                                var args = (matchNormalFunction || matchShortHandFunction)[1].replace(/\/\/.*?[\r\n]|\/\*(?:.|[\r\n])*?\*\//g, '').replace(/\s+/g, '').split(',');
+						var matchNormalFunction = fn.toString().match(/^[\s\(]*function[^(]*\(([^)]*)\)/);
+						// support "(a,b,c) =>", "(a,b,c)=>"
+						var matchShortHandFunction = fn.toString().match(/^\(([^)]*)\).?=>/);
+						var args = (matchNormalFunction || matchShortHandFunction)[1].replace(/\/\/.*?[\r\n]|\/\*(?:.|[\r\n])*?\*\//g, '').replace(/\s+/g, '').split(',');
 						var fnName = fn.name || '(anonymous)';
 						if(args && args.length === 4){
 							fns[index] = function aeMiddlewareWrapper(err, req, res, next){
