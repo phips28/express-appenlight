@@ -36,6 +36,6 @@ module.exports = function asyncWrapper(agent) {
 		prevState.delete(uid);
 	}
 
-	asyncWrap.setupHooks(init, pre, post, destroy);
+	asyncWrap.setupHooks({init, pre, post, destroy});
 	asyncWrap.enable();
 };
