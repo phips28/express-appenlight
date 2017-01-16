@@ -47,7 +47,7 @@ function AppEnlight(conf, app){
 				json: data,
 			}, function(e,r,b){
 				if(!/^OK/.test(b)){
-					console.error('AppEnlight report REQUEST FAILED', b, data);
+					console.error('AppEnlight report REQUEST FAILED', b);
 				}
 			});
 		} catch (e){
@@ -72,7 +72,7 @@ function AppEnlight(conf, app){
 				}],
 			}, function(e,r,b){
 				if(!/^OK/.test(b)){
-					console.error('AppEnlight request metrics REQUEST FAILED', b, data);
+					console.error('AppEnlight request metrics REQUEST FAILED', b);
 				}
 			});
 		} catch(e){
@@ -94,7 +94,7 @@ function AppEnlight(conf, app){
 				json: data,
 			}, function(e,r,b){
 				if(!/^OK/.test(b)){
-					console.error('AppEnlight custom metrics REQUEST FAILED', b, data);
+					console.error('AppEnlight custom metrics REQUEST FAILED', b);
 				}
 			});
 		} catch(e){
